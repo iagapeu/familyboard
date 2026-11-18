@@ -114,9 +114,10 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .hours small{display:block;color:var(--ac);font-size:.7rem;height:1em}
 /* 버스 */
 .bus{overflow-y:auto}
-.stop+.stop{margin-top:.6rem}
-.stop h3{font-size:.85rem;font-weight:600;margin-bottom:.3rem}
-.br{display:flex;align-items:center;padding:.28rem 0;font-size:.85rem}
+.busg{display:grid;grid-template-columns:repeat(auto-fill,minmax(14.5rem,1fr));grid-gap:.55rem 1rem}
+.stop{min-width:0}
+.stop h3{font-size:.82rem;font-weight:600;color:var(--mu);margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br{display:flex;align-items:center;padding:.15rem 0;font-size:.9rem}
 .br .rt{min-width:3.6rem;font-weight:700;padding:.12rem .45rem;border-radius:8px;background:var(--card2);text-align:center;margin-right:.6rem;font-size:.8rem}
 .br .a{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .br .a small{color:var(--mu);margin-left:.4rem}
@@ -822,8 +823,9 @@ function parseStops(){return lines(S.stops).map(function(l){var p=l.split('|').m
     var ni=/^\d{5,9}$/.test(p[1])?1:(/^\d{5,9}$/.test(p[0])?0:1);id=p[ni];
     routes=ni===1?p[0]:(p[3]||'');name=p[2]||id;type=id.length>5?'gg':'seoul'}
   return {type:type,id:id.replace(/\D/g,''),name:name,filter:routes.split(',').map(function(x){return x.trim()}).filter(Boolean)}}).filter(Boolean)}
-function routeOk(s,r){if(!s.filter.length)return true;var a=String(r).replace(/\s|번/g,'');
-  return s.filter.some(function(f){f=f.replace(/\s|번|대$/g,'');return a===f})}
+function routeNorm(x){return String(x||'').replace(/\s|번/g,'').replace(/대$/,'').toUpperCase()}
+function routeOk(s,r){if(!s.filter.length)return true;var a=routeNorm(r);
+  return s.filter.some(function(f){return routeNorm(f)===a})}
 /* 버스 갱신 시간대: "시작-끝|초" — 이 시간에만 자동 갱신 (공공데이터 하루 호출 한도 절약) */
 function busWin(){
   var d=new Date(),t=d.getHours()*60+d.getMinutes(),hit=null;
@@ -849,15 +851,17 @@ function loadBus(){
   if(!st.length){el.innerHTML='<div class="hd"><h2>버스 도착</h2></div><div class="err">설정 › 버스 정류장을 넣어주세요</div>';return Promise.resolve()}
   return api('bus',{stops:st.map(function(s){return {type:s.type,id:s.id}})}).then(function(res){
     LAST.busShown=true;
-    var h='<div class="hd"><h2>'+ic('bus')+' 버스 도착</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+' 기준</span></div>';
+    var h='<div class="hd"><h2>'+ic('bus')+' 버스 도착</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+' 기준</span></div><div class="busg">';
+    var short=function(t){return String(t||'').replace(/(\d+)분\s*\d+초\s*후/,'$1분').replace(/(\d+)초\s*후/,'1분 이내').replace(/\[(\d+)번째 전\]/,' ($1정류장 전)').replace(/\[|\]/g,' ').trim()};
     st.forEach(function(s,i){var r=res[i]||{};h+='<div class="stop"><h3>'+esc(s.name)+'</h3>';
       if(r.error)h+='<div class="err">'+esc(r.error)+'</div>';
       else{var list=(r.list||[]).filter(function(b){return !s.filter.length||routeOk(s,b.route)});
-        if(!list.length)h+='<div class="err">도착 정보가 없어요</div>';
+        if(!list.length){var all=(r.list||[]).map(function(b){return b.route});
+          h+='<div class="err">'+(all.length?'적어둔 노선('+esc(s.filter.join(', '))+')이 이 정류장에 없어요. 이 정류장 노선: '+esc(all.join(', ')):'지금은 도착 예정 버스가 없어요 (운행 종료 또는 정류장 번호 확인)')+'</div>'}
         list.forEach(function(b){var a1=b.a1||'정보 없음',soon=/곧|전역|1분|2분|^[0-2]분/.test(a1);
-          h+='<div class="br"><span class="rt">'+esc(b.route)+'</span><span class="a"><span class="'+(soon?'soon':'')+'">'+esc(a1.replace(/\[/,' (').replace(/\]/,')'))+'</span>'+(b.a2?'<small>다음 '+esc(b.a2.replace(/\[.*$/,'').replace(/\s*\(.*$/,''))+'</small>':'')+'</span></div>'})}
+          h+='<div class="br"><span class="rt">'+esc(b.route)+'</span><span class="a"><span class="'+(soon?'soon':'')+'">'+esc(short(a1))+'</span>'+(b.a2?'<small>다음 '+esc(short(b.a2).replace(/\s*\(.*$/,''))+'</small>':'')+'</span></div>'})}
       h+='</div>'});
-    el.innerHTML=h;
+    el.innerHTML=h+'</div>';
   }).catch(function(e){el.innerHTML='<div class="hd"><h2>버스 도착</h2></div><div class="err">'+esc(e.message)+'</div>'});
 }
 
