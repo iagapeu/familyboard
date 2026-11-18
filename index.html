@@ -789,7 +789,58 @@ function openStock(range){
 
 /* ───────── 도우미 ───────── */
 var BOT={hist:[]};
-var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+/* 음성 질문: 마이크로 녹음(WAV 16kHz) → Gemini가 듣고 대답 (브라우저 음성인식 없이 모든 기기에서 동작) */
+var AC=window.AudioContext||window.webkitAudioContext;
+var MIC_OK=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&AC);
+var REC=null;
+function micToggle(){if(REC){micStop(true);return}micStart()}
+function micStart(){
+  speechStop();
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}).then(function(stream){
+    var ctx=new AC(),src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),bufs=[],peak=0;
+    proc.onaudioprocess=function(e){var d=e.inputBuffer.getChannelData(0);bufs.push(new Float32Array(d));for(var i=0;i<d.length;i+=64){var a=Math.abs(d[i]);if(a>peak)peak=a}};
+    src.connect(proc);proc.connect(ctx.destination);
+    REC={ctx:ctx,stream:stream,proc:proc,bufs:bufs,rate:ctx.sampleRate,peak:function(){return peak},t:setTimeout(function(){micStop(true)},8000)};
+    var b=$('#bMic');if(b){b.style.background='var(--bad)';b.innerHTML='■'}
+    var f=$('#bF');if(f){f.className='face think';f.textContent='👂'}
+    toast('듣고 있어요… 다 말하면 ■ 를 누르세요');
+  }).catch(function(e){
+    toast(/NotAllowed|Permission/i.test(e.name+e.message)?'마이크 권한을 허용해 주세요 (주소창 왼쪽 자물쇠 › 마이크)':'마이크를 쓸 수 없어요: '+e.name);
+  });
+}
+function micStop(send){
+  var r=REC;if(!r)return;REC=null;clearTimeout(r.t);
+  try{r.proc.disconnect();r.stream.getTracks().forEach(function(t){t.stop()});r.ctx.close()}catch(e){}
+  var b=$('#bMic');if(b){b.style.background='var(--kid)';b.innerHTML=ic('mic')}
+  var f=$('#bF');if(f){f.className='face';f.textContent='🐣'}
+  if(!send)return;
+  var n=0;r.bufs.forEach(function(x){n+=x.length});
+  if(n<r.rate*0.5||r.peak()<0.02){toast('소리가 잘 안 들렸어요. 마이크 가까이에서 다시 말해 주세요');return}
+  askVoice(wav16(r.bufs,n,r.rate));
+}
+function wav16(bufs,n,rate){
+  var out=16000,ratio=rate/out,len=Math.floor(n/ratio),all=new Float32Array(n),o=0;
+  bufs.forEach(function(x){all.set(x,o);o+=x.length});
+  var dv=new DataView(new ArrayBuffer(44+len*2));
+  function str(p,t){for(var i=0;i<t.length;i++)dv.setUint8(p+i,t.charCodeAt(i))}
+  str(0,'RIFF');dv.setUint32(4,36+len*2,true);str(8,'WAVE');str(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,out,true);dv.setUint32(28,out*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);str(36,'data');dv.setUint32(40,len*2,true);
+  for(var i=0;i<len;i++){var a=0,s0=Math.floor(i*ratio),s1=Math.min(n,Math.floor((i+1)*ratio)),c=0;for(var k=s0;k<s1;k++){a+=all[k];c++}
+    var v=Math.max(-1,Math.min(1,c?a/c:0));dv.setInt16(44+i*2,v<0?v*0x8000:v*0x7FFF,true)}
+  var u=new Uint8Array(dv.buffer),bin='';for(var j=0;j<u.length;j+=0x8000)bin+=String.fromCharCode.apply(null,u.subarray(j,j+0x8000));
+  return btoa(bin);
+}
+function askVoice(b64){
+  var hist=BOT.hist.slice(-8);
+  BOT.hist.push({r:'me',t:'🎤 …'});renderBotLog();
+  var me=BOT.hist[BOT.hist.length-1];
+  var f=$('#bF');if(f){f.className='face think';f.textContent='🤔'}
+  api('ask',{audio:b64,mime:'audio/wav',history:hist,bot:S.bot,kid:members()[2]||S.me,context:context()}).then(function(r){
+    me.t='🎤 '+(r.heard||'(잘 안 들렸어요)');BOT.hist.push({r:'bot',t:r.text});renderBotLog();speak(r.text);
+  }).catch(function(e){me.t='🎤';BOT.hist.push({r:'bot',t:'앗, 지금은 대답할 수 없어요. ('+e.message+')'});renderBotLog()})
+  .then(function(){var f=$('#bF');if(f){f.className='face';f.textContent='🐣'}});
+}
+function speechStop(){try{speechSynthesis.cancel()}catch(e){}}
 function context(){
   var d=new Date();
   return ['지금: '+d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 '+DAYS[d.getDay()]+'요일 '+fmtT(d.getTime()),'날씨: '+weatherText(),eventsText(),statusText()].filter(Boolean).join('\n');
@@ -799,14 +850,14 @@ function openBot(){
   openModal('<div class="bot"><div class="face" id="bF">🐣</div><div style="text-align:center;font-weight:600">'+esc(name)+'</div>'+
     '<div class="blog" id="bLog"></div>'+
     '<div class="qs" id="bQ">'+lines(S.questions).map(function(q){return '<button class="chip">'+esc(name)+(/[가-힣]$/.test(name)&&((name.charCodeAt(name.length-1)-0xAC00)%28)?'아':'야')+', '+esc(q)+'</button>'}).join('')+'</div>'+
-    '<div class="comp"><input id="bIn" maxlength="200" placeholder="궁금한 걸 물어보세요">'+(SR?'<button class="send" id="bMic" style="background:var(--kid)">'+ic('mic')+'</button>':'')+'<button class="send" id="bGo">'+ic('send')+'</button></div>'+
+    '<div class="comp"><input id="bIn" maxlength="200" placeholder="궁금한 걸 물어보세요">'+(MIC_OK?'<button class="send" id="bMic" style="background:var(--kid)">'+ic('mic')+'</button>':'')+'<button class="send" id="bGo">'+ic('send')+'</button></div>'+
     '<div class="btns"><button class="btn" id="bClr">새 대화</button><button class="btn" data-close>닫기</button></div></div>');
   renderBotLog();
   $('#bQ').onclick=function(e){var b=e.target.closest('.chip');if(b)ask(b.textContent)};
   $('#bGo').onclick=function(){var v=$('#bIn').value.trim();if(v){$('#bIn').value='';ask(v)}};
   $('#bIn').onkeydown=function(e){if(e.keyCode===13)$('#bGo').onclick()};
   $('#bClr').onclick=function(){BOT.hist=[];renderBotLog();try{speechSynthesis.cancel()}catch(e){}};
-  if(SR)$('#bMic').onclick=function(){try{var r=new SR();r.lang='ko-KR';r.interimResults=false;r.onresult=function(ev){ask(ev.results[0][0].transcript)};r.onerror=function(){toast('음성 인식이 안 돼요. 글자로 물어봐 주세요')};r.start();toast('듣고 있어요…')}catch(e){toast('음성 인식을 쓸 수 없어요')}};
+  if(MIC_OK)$('#bMic').onclick=micToggle;
 }
 function renderBotLog(){
   var el=$('#bLog');if(!el)return;
@@ -856,7 +907,7 @@ $('#dOff').onclick=function(){manualOff=true;wakeUntil=0;applyDim();toast('화�
 
 /* ───────── 모달 ───────── */
 function openModal(html,wide){var b=$('#box');b.className='box'+(wide?' wide':'');b.innerHTML=html;b.scrollTop=0;$('#modal').className='modal open'}
-function closeModal(){$('#modal').className='modal';$('#box').innerHTML=''}
+function closeModal(){if(typeof REC!=='undefined'&&REC)micStop(false);$('#modal').className='modal';$('#box').innerHTML=''}
 $('#modal').onclick=function(e){if(e.target.id==='modal'||e.target.hasAttribute('data-close'))closeModal()};
 
 /* ───────── 설정 ───────── */
