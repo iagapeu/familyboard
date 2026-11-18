@@ -54,6 +54,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .td.done .tx{text-decoration:line-through;text-decoration-thickness:2px;color:var(--mu)}
 .td.soon .tx{color:var(--kid);font-weight:700}
 .td.late .tx small{color:var(--bad)}
+.tdnext{font-size:.8rem;color:var(--mu);padding:.6rem .3rem 0}
 .alldone{text-align:center;font-size:1.1rem;padding:.8rem 0;color:var(--ok);font-weight:600}
 .todo.urgent{box-shadow:inset 0 0 0 2px var(--kid)}
 #remind{position:fixed;left:50%;top:1rem;transform:translateX(-50%);z-index:70;background:var(--kid);color:#fff;border-radius:22px;padding:1rem 1.6rem;font-size:1.6rem;font-weight:700;box-shadow:0 10px 40px rgba(0,0,0,.45);display:none;align-items:center;max-width:92%}
@@ -519,7 +520,8 @@ function openEvent(e,dayKeyStr){
     en=new Date(s.getTime()+3600000);all=false;cal=(members().indexOf(S.me)>1&&calHas('child'))?'child':editable[0].key}
   var seg=editable.map(function(c){return '<button data-c="'+c.key+'" class="'+(c.key===cal?'on':'')+'">'+esc(c.name)+'</button>'}).join('');
   openModal('<h2>'+(e?'일정 수정':'새 일정')+'</h2>'+
-    '<div class="f"><label>제목</label><input id="eT" maxlength="100" value="'+esc(e?e.title:'')+'" placeholder="예) 피아노 학원"></div>'+
+    '<div class="f"><label>제목</label><input id="eT" maxlength="100" value="'+esc(e?(isTodo(e)?e.title.replace(tdRe(),''):e.title):'')+'" placeholder="예) 피아노 학원"></div>'+
+    '<div class="f ck"><label><input type="checkbox" id="eTd" '+(e&&isTodo(e)?'checked':'')+'>'+esc(members()[2]||'아이')+' 할 일로 (체크리스트에 날마다 나와요)</label></div>'+
     '<div class="f"><label>캘린더</label><div class="seg" id="eC">'+seg+'</div></div>'+
     '<div class="f ck"><label><input type="checkbox" id="eA" '+(all?'checked':'')+'>하루 종일</label></div>'+
     '<div class="row2"><div class="f"><label>시작 날짜</label><input type="date" id="eSD" value="'+d2i(s)+'"></div><div class="f" id="eSTw"><label>시작 시간</label><input type="time" id="eST" value="'+t2i(s)+'"></div></div>'+
@@ -528,13 +530,15 @@ function openEvent(e,dayKeyStr){
     '<div class="btns">'+(e?'<button class="btn danger" id="eDel">삭제</button>':'')+'<button class="btn" data-close>취소</button><button class="btn pri" id="eSave">저장</button></div>');
   function sync(){var a=$('#eA').checked;$('#eSTw').style.display=a?'none':'';$('#eETw').style.display=a?'none':''}
   sync();$('#eA').onchange=sync;
+  $('#eTd').onchange=function(){if(this.checked&&!e){$('#eA').checked=true;sync()}if(this.checked&&!e&&calHas('child')){cal='child';$$('#eC button').forEach(function(x){x.className=x.getAttribute('data-c')==='child'?'on':''})}};
   $$('#eC button').forEach(function(b){b.onclick=function(){$$('#eC button').forEach(function(x){x.className=''});b.className='on';cal=b.getAttribute('data-c')}});
   $('#eSD').onchange=function(){if($('#eED').value<$('#eSD').value)$('#eED').value=$('#eSD').value};
   $('#eSave').onclick=function(){
     var a=$('#eA').checked,st,et;
     if(a){st=i2d($('#eSD').value);et=i2d($('#eED').value||$('#eSD').value);if(et<st)et=new Date(st);et.setDate(et.getDate()+1)}
     else{st=i2d($('#eSD').value,$('#eST').value);et=i2d($('#eED').value||$('#eSD').value,$('#eET').value);if(et<=st)et=new Date(st.getTime()+3600000)}
-    var t=$('#eT').value.trim();if(!t){toast('제목을 입력해 주세요');return}
+    var t=$('#eT').value.trim().replace(tdRe(),'');if(!t){toast('제목을 입력해 주세요');return}
+    if($('#eTd').checked)t=(String(S.todoPrefix||'할일').split(',')[0]||'할일').trim()+': '+t;
     var d={title:t,cal:cal,allDay:a,start:st.getTime(),end:et.getTime(),loc:$('#eL').value.trim()};
     if(e){d.id=e.id;d.origCal=e.cal}
     this.disabled=true;this.textContent='저장 중…';
@@ -563,8 +567,9 @@ function tdRe(){var ps=String(S.todoPrefix||'할일').split(',').map(function(x)
   ps.push('☐','□','✅','✔');return new RegExp('^\\s*[\\[(【]?\\s*(?:'+ps.join('|')+')\\s*[\\])】]?\\s*[:：\\-·]?\\s*','i')}
 function isTodo(e){return e.cal!=='holiday'&&tdRe().test(e.title||'')}
 function tdKey(e,day){return e.id+'|'+day}
-function todayTodos(){
-  var today=sod(new Date()),tk=dayKey(today),t0=today.getTime(),t1=t0+86400000,now=Date.now(),re=tdRe(),out=[];
+function todayTodos(){return todosOn(0)}
+function todosOn(off){
+  var today=sod(new Date());today.setDate(today.getDate()+(off||0));var tk=dayKey(today),t0=today.getTime(),t1=t0+86400000,now=Date.now(),re=tdRe(),out=[];
   EV.forEach(function(e){
     if(!isTodo(e))return;
     if(e.allDay?!(e.start<t1&&e.end>t0):!(e.start>=t0&&e.start<t1))return;
@@ -585,6 +590,8 @@ function renderTodo(){
   list.forEach(function(t){
     h+='<button class="td'+(t.done?' done':'')+(!t.done&&t.soon?' soon':'')+(!t.done&&t.late?' late':'')+'" data-k="'+esc(t.key)+'"><span class="bx">'+(t.done?'✓':'')+'</span><span class="tx">'+esc(t.title)+
       (t.allDay?'':'<small>'+fmtT(t.start)+(!t.done&&t.late?' · 시간이 지났어요':'')+'</small>')+'</span></button>'});
+  var tm=todosOn(1);
+  if(tm.length)h+='<div class="tdnext">내일 할 일 '+tm.length+'개 · '+tm.slice(0,3).map(function(t){return esc(t.title)}).join(', ')+(tm.length>3?' …':'')+'</div>';
   $('#tdList').innerHTML=h;
   $('#todo').classList.toggle('urgent',list.some(function(t){return !t.done&&t.soon}));
   var left=list.filter(function(t){return !t.done}),ft=$('#fTodo');
@@ -595,18 +602,26 @@ function setTodo(key,done){
   if(done&&todayTodos().every(function(t){return t.done}))speak((members()[2]||'')+' 오늘 할 일을 다 했어! 정말 잘했어!');
   api('todoDone',{key:key,done:done}).then(function(m){DONE=m;renderTodo()}).catch(function(e){toast(e.message)});
 }
-$('#tdList').onclick=function(e){var b=e.target.closest('.td');if(!b)return;var k=b.getAttribute('data-k');setTodo(k,!DONE[k])};
+var TDLP={t:null,fired:false};
+$('#tdList').addEventListener('pointerdown',function(e){var b=e.target.closest('.td');if(!b)return;TDLP.fired=false;clearTimeout(TDLP.t);
+  TDLP.t=setTimeout(function(){TDLP.fired=true;var k=b.getAttribute('data-k'),id=k.split('|')[0],ev=null;EV.forEach(function(x){if(x.id===id&&!ev)ev=x});if(ev)openEvent(ev)},650)});
+['pointerup','pointerleave','pointercancel'].forEach(function(n){$('#tdList').addEventListener(n,function(){clearTimeout(TDLP.t)})});
+$('#tdList').onclick=function(e){var b=e.target.closest('.td');if(!b||TDLP.fired)return;var k=b.getAttribute('data-k');setTodo(k,!DONE[k])};
 $('#addTd').onclick=function(){
   var editable=CALS.filter(function(c){return !c.ro&&c.key!=='holiday'});
   if(!editable.length){toast('먼저 Apps Script에 캘린더 ID를 넣어주세요');return}
   var cal=calHas('child')?'child':editable[0].key,pre=(String(S.todoPrefix||'할일').split(',')[0]||'할일').trim();
   openModal('<h2>할 일 추가</h2><div class="f"><label>할 일</label><input id="tdT" maxlength="80" placeholder="예) 수학 숙제, 줄넘기 100번"></div>'+
-    '<div class="f"><label>언제까지 (비우면 오늘 하루)</label><input type="time" id="tdTm"></div>'+
+    '<div class="f"><label>날짜</label><div class="seg" id="tdDs"><button data-o="0" class="on">오늘</button><button data-o="1">내일</button><button data-o="2">모레</button></div><input type="date" id="tdD" style="margin-top:.4rem" value="'+d2i(new Date())+'"></div>'+
+    '<div class="f"><label>시간 (비우면 그날 하루 · 넣으면 10분 전에 알려줘요)</label><input type="time" id="tdTm"></div>'+
     '<div class="f"><label>매일 반복하는 할 일은 구글 캘린더 앱에서 "'+esc(pre)+': 할 일"로 만들고 반복을 설정하세요</label></div>'+
     '<div class="btns"><button class="btn" data-close>취소</button><button class="btn pri" id="tdOk">추가</button></div>');
   setTimeout(function(){$('#tdT').focus()},100);
+  $('#tdDs').onclick=function(e){var b=e.target.closest('button');if(!b)return;$$('#tdDs button').forEach(function(x){x.className=''});b.className='on';var d=new Date();d.setDate(d.getDate()+(+b.getAttribute('data-o')));$('#tdD').value=d2i(d)};
+  $('#tdD').onchange=function(){$$('#tdDs button').forEach(function(x){x.className=''})};
   $('#tdOk').onclick=function(){var t=$('#tdT').value.trim();if(!t)return;var tm=$('#tdTm').value,st,en,all=!tm;
-    if(all){st=sod(new Date());en=new Date(st.getTime()+86400000)}else{st=i2d(d2i(new Date()),tm);en=new Date(st.getTime()+30*60000)}
+    var ds=$('#tdD').value||d2i(new Date());
+    if(all){st=i2d(ds);en=new Date(st);en.setDate(en.getDate()+1)}else{st=i2d(ds,tm);en=new Date(st.getTime()+30*60000)}
     this.disabled=true;
     api('addEvent',{title:pre+': '+t,cal:cal,allDay:all,start:st.getTime(),end:en.getTime(),loc:''}).then(function(){closeModal();toast('할 일을 추가했어요');LAST.ev=0;loadEvents()}).catch(function(e){toast(e.message);$('#tdOk').disabled=false})};
 };
