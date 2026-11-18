@@ -988,7 +988,8 @@ function micStart(){
     var f=$('#bF');if(f){f.className='face think';f.textContent='👂'}
     toast('듣고 있어요… 다 말하면 ■ 를 누르세요');
   }).catch(function(e){
-    toast(/NotAllowed|Permission/i.test(e.name+e.message)?'마이크 권한을 허용해 주세요 (주소창 왼쪽 자물쇠 › 마이크)':'마이크를 쓸 수 없어요: '+e.name);
+    var fully=!!window.fully||/fully/i.test(navigator.userAgent);
+    toast(/NotAllowed|Permission|NotReadable|NotFound/i.test(e.name+e.message)?(fully?'마이크 권한이 없어요 · Fully 설정 › Web Content Settings › Enable Microphone Access 켜기 + 태블릿 설정 › 앱 › Fully › 권한 › 마이크 허용':'마이크 권한을 허용해 주세요 (주소창 왼쪽 자물쇠 › 권한 › 마이크)'):'마이크를 쓸 수 없어요: '+e.name);
   });
 }
 function micStop(send){
@@ -1157,7 +1158,7 @@ function openSettings(first){
   openModal(h);
   function collect(){FIELDS.forEach(function(f){if(f[0]==='#')return;var el=$('#s_'+f[0]);S[f[0]]=f[2]==='check'?el.checked:el.value.trim()})}
   $('#sSave').onclick=function(){collect();saveS();closeModal();toast('저장했어요');cWho=S.me;renderCompose();renderMemos();buildOrder();applyMenus();applyScale();renderTodo();refreshAll(true)};
-  $('#sTest').onclick=function(){collect();api('ping').then(function(r){alert('✅ 연결 성공\n\n'+r.cals.map(function(c){return (c.ok?'✅ ':'❌ ')+c.name}).join('\n'))}).catch(function(e){alert('❌ '+e.message)})};
+  $('#sTest').onclick=function(){collect();api('ping').then(function(r){alert('✅ 연결 성공\n서버: '+(r.ver||'예전 버전 (새로 배포 필요)')+'\n\n'+r.cals.map(function(c){return (c.ok?'✅ ':'❌ ')+c.name}).join('\n'))}).catch(function(e){alert('❌ '+e.message)})};
   $('#sPC').onclick=function(){pcClear().then(function(){toast('저장된 사진을 비웠어요');closeModal()})};
   $('#sGeo').onclick=function(){var n=$('#s_place').value.trim();if(!n)return;
     fetch('https://geocoding-api.open-meteo.com/v1/search?count=5&language=ko&name='+encodeURIComponent(n)).then(function(r){return r.json()}).then(function(j){
