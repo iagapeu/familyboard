@@ -156,6 +156,29 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .hours small{display:block;color:var(--ac);font-size:.7rem;height:1em}
 /* 버스 */
 .bus{overflow-y:auto}
+.trk{position:relative;width:5.6rem;height:1rem;flex:0 0 auto;margin-left:.5rem}
+.trk:before{content:"";position:absolute;left:.25rem;right:.25rem;top:50%;height:2px;margin-top:-1px;background:var(--line)}
+.trk i{position:absolute;top:50%;width:.42rem;height:.42rem;margin:-.21rem 0 0 -.21rem;border-radius:50%;background:var(--line)}
+.trk i.me{width:.7rem;height:.7rem;margin:-.35rem 0 0 -.35rem;background:var(--card);border:2px solid var(--ac)}
+.trk b{position:absolute;top:50%;transform:translate(-50%,-55%);font-size:.85rem;line-height:1;transition:left .6s}
+.trk em{position:absolute;left:-.2rem;top:50%;transform:translateY(-50%);font-style:normal;font-size:.6rem;color:var(--mu)}
+.tsec+.tsec{margin-top:.7rem;padding-top:.6rem;border-top:1px solid var(--line)}
+.sline{display:inline-block;font-size:.68rem;font-weight:700;color:#fff;border-radius:6px;padding:.05rem .35rem;margin-right:.3rem;vertical-align:.08rem}
+.sdir{font-size:.75rem;color:var(--mu);margin:.3rem 0 .05rem}
+.mstk{display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));grid-gap:.4rem .8rem}
+.ms{display:flex;align-items:center;font-size:.85rem;min-width:0}
+.ms .mn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms .mp{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;margin-left:.3rem;line-height:1.15}
+.ms .mp small{display:block;font-size:.7rem;font-weight:700}
+.ms svg{width:3.4rem;height:1.5rem;margin-left:.4rem;flex:0 0 auto}
+.wtm{display:flex;align-items:center;font-size:.85rem;margin-top:.6rem;color:var(--mu)}
+.wtm .i{width:1.3em;height:1.3em;margin:0 .35rem;color:var(--tx)}
+.wtm b{color:var(--tx);font-weight:600;margin-right:.4rem}
+.week7{display:flex;justify-content:space-between;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--line)}
+.week7 div{flex:1;text-align:center;font-size:.72rem;color:var(--mu)}
+.week7 .i{display:block;width:1.4em;height:1.4em;margin:.2rem auto;color:var(--tx)}
+.week7 b{display:block;color:var(--tx);font-size:.78rem;font-weight:600}
+.week7 small{display:block;color:var(--ac);font-size:.65rem;height:.9em}
 .busg{display:grid;grid-template-columns:repeat(auto-fill,minmax(14.5rem,1fr));grid-gap:.55rem 1rem}
 .stop{min-width:0}
 .stop h3{font-size:.82rem;font-weight:600;color:var(--mu);margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -311,7 +334,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
     <div id="greet"></div>
   </div>
   <div class="card weather tile" id="weather" data-w="weather"><div class="hd"><h2>날씨</h2></div><div class="err">날씨를 불러오는 중…</div></div>
-  <div class="card bus tile" id="bus" data-w="bus"><div class="hd"><h2>버스 도착</h2></div><div class="err">설정에서 정류장을 넣어주세요</div></div>
+  <div class="card bus tile" id="bus" data-w="bus"><div class="tsec" id="busBox"></div><div class="tsec" id="subBox"></div><div class="tsec" id="stkBox"></div></div>
   <div class="card todo tile" id="todo" data-w="todo">
     <div class="hd"><h2 id="tdTitle">오늘 할 일</h2><button class="addbtn" id="addTd">+ 할 일</button></div>
     <div class="prog"><i id="tdProg" style="width:0"></i></div>
@@ -372,7 +395,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 (function(){
 'use strict';
 /* ───────── 기본 ───────── */
-var VER='1.5', BLOG='https://blog.naver.com/iagapeu';
+var VER='1.6', BLOG='https://blog.naver.com/iagapeu';
 function $(s,el){return (el||document).querySelector(s)}
 function $$(s,el){return Array.prototype.slice.call((el||document).querySelectorAll(s))}
 function pad(n){return (n<10?'0':'')+n}
@@ -386,6 +409,7 @@ var DEF={
   stops:'', busTimes:'06:50-09:00|60\n13:00-14:30|120\n17:30-19:30|120',
   photoSec:'20', photoOrder:'random', idleFrame:'0', photoQ:'auto', photoNet:'always', photoCacheN:'200',
   todoPrefix:'할일', remind:true, uiScale:'100',
+  busShow:true, subShow:false, stkShow:false, subways:'', tileStocks:'코스피|^KS11\n코스닥|^KQ11\n나스닥|^IXIC\n삼성전자|005930.KS\n애플|AAPL', wxWeek:true,
   bankShow:true, bankGive:false, timerSound:true, pin:'', font:'sys', clockFont:'', cTx:'',
   palette:'basic', cBg:'', cCard:'', cAc:'', cFam:'', cKid:'', cHol:'',
   theme:'dark', dims:'21:30-22:30|35\n22:30-06:30|0', fullyOff:false,
@@ -467,7 +491,7 @@ function pmG(v,small){if(v==null)return['-',''];var a=small?[15,35,75]:[30,80,15
 function loadWeather(){
   var q='latitude='+S.lat+'&longitude='+S.lon+'&timezone=Asia%2FSeoul';
   var u='https://api.open-meteo.com/v1/forecast?'+q+'&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day'+
-    '&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&forecast_days=2&wind_speed_unit=ms';
+    '&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&forecast_days=8&wind_speed_unit=ms';
   var a='https://air-quality-api.open-meteo.com/v1/air-quality?'+q+'&current=pm10,pm2_5';
   return Promise.all([
     fetch(u).then(function(r){return r.json()}),
@@ -486,8 +510,7 @@ function renderWeather(){
   h+='<span class="pill">강수 <b>'+(dd.precipitation_probability_max[0]||0)+'%</b></span>';
   h+='<span class="pill">습도 '+c.relative_humidity_2m+'% · 바람 '+Math.round(c.wind_speed_10m)+'m/s</span>';
   if(p10!=null) h+='<span class="pill">미세 <b class="'+g10[1]+'">'+g10[0]+'</b> · 초미세 <b class="'+g25[1]+'">'+g25[0]+'</b></span>';
-  var tw=wInfo(dd.weather_code[1],1);
-  h+='<span class="pill mu">내일 '+tw.t+' '+Math.round(dd.temperature_2m_min[1])+'°/'+Math.round(dd.temperature_2m_max[1])+'°</span></div>';
+  h+='</div>';
   // 시간별 (3시간 간격 6칸)
   var now=Date.now(),hr=WX.hourly,start=0;
   for(var i=0;i<hr.time.length;i++){if(new Date(hr.time[i]).getTime()>now){start=i;break}}
@@ -495,6 +518,14 @@ function renderWeather(){
   for(var k=0;k<6;k++){var j=start+k*3;if(j>=hr.time.length)break;var t=new Date(hr.time[j]),hh=t.getHours(),wi=wInfo(hr.weather_code[j],hr.is_day[j]),pp=hr.precipitation_probability[j];
     h+='<div>'+(hh<12?'오전':'오후')+' '+(hh%12||12)+'시'+ic(wi.k)+'<b>'+Math.round(hr.temperature_2m[j])+'°</b><small>'+(pp>=30?'☂ '+pp+'%':'')+'</small></div>'}
   h+='</div>';
+  var tw=wInfo(dd.weather_code[1],1),tp=dd.precipitation_probability_max[1]||0;
+  h+='<div class="wtm"><b>내일</b>'+ic(tw.k)+tw.t+' · '+Math.round(dd.temperature_2m_min[1])+'° / '+Math.round(dd.temperature_2m_max[1])+'°'+(tp>=30?' · ☂ '+tp+'%':'')+'</div>';
+  if(S.wxWeek&&dd.time&&dd.time.length>2){
+    h+='<div class="week7">';
+    for(var q=1;q<Math.min(8,dd.time.length);q++){var dt=new Date(dd.time[q]+'T00:00'),wq=wInfo(dd.weather_code[q],1),pq=dd.precipitation_probability_max[q]||0;
+      h+='<div>'+(q===1?'내일':DAYS[dt.getDay()])+ic(wq.k)+'<b>'+Math.round(dd.temperature_2m_max[q])+'°</b>'+Math.round(dd.temperature_2m_min[q])+'°<small>'+(pq>=40?'☂'+pq:'')+'</small></div>'}
+    h+='</div>';
+  }
   $('#weather').innerHTML=h;
 }
 function weatherText(){
@@ -1039,30 +1070,88 @@ function busNext(){
 }
 var busManualUntil=0;
 function busPinned(){return Date.now()<busManualUntil}
+function track(n,icon,col){ // n정거장 전 → 그림 (오른쪽 끝 ◎ = 우리 정류장)
+  var N=5,h='<span class="trk">';
+  for(var i=0;i<=N;i++)h+='<i class="'+(i===N?'me':'')+'" style="left:calc(.25rem + '+(i/N)+' * (100% - .5rem))"></i>';
+  if(n!=null&&n>=0){var pos=Math.max(0,N-Math.min(n,N));h+='<b style="left:calc(.25rem + '+(pos/N)+' * (100% - .5rem));'+(col?'color:'+col:'')+'">'+icon+'</b>';if(n>N)h+='<em>+'+(n-N)+'</em>'}
+  return h+'</span>'}
+function busN(t){t=String(t||'');var m=t.match(/(\d+)\s*번째\s*전/)||t.match(/(\d+)\s*정류장\s*전/);if(m)return +m[1];if(/곧\s*도착|도착|진입/.test(t))return 0;return null}
+function noStops(){return '<div class="hd"><h2>'+ic('bus')+' 버스</h2></div><div class="err">설정 › 버스 정류장을 넣어주세요</div>'}
 function busIdle(){
-  var st=parseStops(),el=$('#bus');if(!st.length){el.innerHTML='<div class="hd"><h2>버스 도착</h2></div><div class="err">설정 › 버스 정류장을 넣어주세요</div>';return}LAST.busShown=false;
-  var n=busNext();
-  el.innerHTML='<div class="hd"><h2>'+ic('bus')+' 버스 도착</h2></div><div class="err">'+(n?n+'부터 자동으로 보여줘요 · ':'')+'눌러서 지금 보기</div>';
+  var el=$('#busBox'),sb=$('#subBox');LAST.busShown=false;
+  var n=busNext(),msg=(n?n+'부터 자동으로 보여줘요 · ':'')+'눌러서 지금 보기';
+  if(S.busShow){var st=parseStops();el.innerHTML=st.length?'<div class="hd"><h2>'+ic('bus')+' 버스</h2></div><div class="err">'+msg+'</div>':noStops()}
+  if(S.subShow)sb.innerHTML='<div class="hd"><h2>🚇 지하철</h2></div><div class="err">'+(subList().length?msg:'설정 › 지하철역을 넣어주세요')+'</div>';
 }
-$('#bus').onclick=function(){busManualUntil=Date.now()+5*60000;LAST.bus=0;loadBus();toast('5분 동안 버스 정보를 보여줘요')};
+$('#busBox').onclick=$('#subBox').onclick=function(){busManualUntil=Date.now()+5*60000;LAST.bus=0;loadBus();toast('5분 동안 버스·지하철 정보를 보여줘요')};
 function loadBus(){
-  var st=parseStops(),el=$('#bus');
-  if(!st.length){el.innerHTML='<div class="hd"><h2>버스 도착</h2></div><div class="err">설정 › 버스 정류장을 넣어주세요</div>';return Promise.resolve()}
+  showSecs();loadSubway();
+  if(!S.busShow)return Promise.resolve();
+  var st=parseStops(),el=$('#busBox');
+  if(!st.length){el.innerHTML=noStops();return Promise.resolve()}
   return api('bus',{stops:st.map(function(s){return {type:s.type,id:s.id}})}).then(function(res){
     LAST.busShown=true;
-    var h='<div class="hd"><h2>'+ic('bus')+' 버스 도착</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+' 기준</span></div><div class="busg">';
+    var h='<div class="hd"><h2>'+ic('bus')+' 버스</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+' 기준</span></div><div class="busg">';
     var short=function(t){return String(t||'').replace(/(\d+)분\s*\d+초\s*후/,'$1분').replace(/(\d+)초\s*후/,'1분 이내').replace(/\[(\d+)번째 전\]/,' ($1정류장 전)').replace(/\[|\]/g,' ').trim()};
     st.forEach(function(s,i){var r=res[i]||{};h+='<div class="stop"><h3>'+esc(s.name)+'</h3>';
       if(r.error)h+='<div class="err">'+esc(r.error)+'</div>';
       else{var list=(r.list||[]).filter(function(b){return !s.filter.length||routeOk(s,b.route)});
         if(!list.length){var all=(r.list||[]).map(function(b){return b.route});
           h+='<div class="err">'+(all.length?'적어둔 노선('+esc(s.filter.join(', '))+')이 이 정류장에 없어요. 이 정류장 노선: '+esc(all.join(', ')):'지금은 도착 예정 버스가 없어요 (운행 종료 또는 정류장 번호 확인)')+'</div>'}
-        list.forEach(function(b){var a1=b.a1||'정보 없음',soon=/곧|전역|1분|2분|^[0-2]분/.test(a1);
-          h+='<div class="br"><span class="rt">'+esc(b.route)+'</span><span class="a"><span class="'+(soon?'soon':'')+'">'+esc(short(a1))+'</span>'+(b.a2?'<small>다음 '+esc(short(b.a2).replace(/\s*\(.*$/,''))+'</small>':'')+'</span></div>'})}
+        list.forEach(function(b){var a1=b.a1||'정보 없음',n=busN(a1),soon=n!=null&&n<=1||/곧|1분|2분|^[0-2]분/.test(a1);
+          h+='<div class="br"><span class="rt">'+esc(b.route)+'</span><span class="a"><span class="'+(soon?'soon':'')+'">'+esc(short(a1).replace(/\s*\(.*$/,''))+'</span>'+(b.a2?'<small>다음 '+esc(short(b.a2).replace(/\s*\(.*$/,''))+'</small>':'')+'</span>'+track(n,'🚌')+'</div>'})}
       h+='</div>'});
     el.innerHTML=h+'</div>';
-  }).catch(function(e){el.innerHTML='<div class="hd"><h2>버스 도착</h2></div><div class="err">'+esc(e.message)+'</div>'});
+  }).catch(function(e){el.innerHTML='<div class="hd"><h2>버스</h2></div><div class="err">'+esc(e.message)+'</div>'});
 }
+function showSecs(){$('#busBox').style.display=S.busShow?'':'none';$('#subBox').style.display=S.subShow?'':'none';$('#stkBox').style.display=S.stkShow?'':'none'}
+
+/* ───────── 지하철 ───────── */
+var LCOL={'1호선':'#0052A4','2호선':'#00A84D','3호선':'#EF7C1C','4호선':'#00A5DE','5호선':'#996CAC','6호선':'#CD7C2F','7호선':'#747F00','8호선':'#E6186C','9호선':'#BDB092',
+  '경의중앙선':'#77C4A3','공항철도':'#0090D2','경춘선':'#0C8E72','수인분당선':'#FABE00','신분당선':'#D4003B','우이신설선':'#B0CE18','GTX-A':'#9A6292','서해선':'#8FC31F','신림선':'#6789CA','경강선':'#003DA5'};
+function subList(){return lines(S.subways).map(function(l){var p=l.split('|').map(function(x){return x.trim()});return p[0]?{name:p[0].replace(/역$/,''),line:p[1]||'',dir:p[2]||''}:null}).filter(Boolean)}
+function loadSubway(){
+  if(!S.subShow)return;
+  var sl=subList(),el=$('#subBox');
+  if(!sl.length){el.innerHTML='<div class="hd"><h2>🚇 지하철</h2></div><div class="err">설정 › 지하철역을 넣어주세요</div>';return}
+  var names=[];sl.forEach(function(x){if(names.indexOf(x.name)<0)names.push(x.name)});
+  api('subway',{stations:names}).then(function(res){
+    var h='<div class="hd"><h2>🚇 지하철</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+' 기준</span></div><div class="busg">';
+    sl.forEach(function(st){var r=res[names.indexOf(st.name)]||{};
+      h+='<div class="stop"><h3>'+esc(st.name)+'역'+(st.line?' · '+esc(st.line):'')+'</h3>';
+      if(r.error){h+='<div class="err">'+esc(r.error)+'</div></div>';return}
+      var lineKey=st.line.replace(/\s/g,''),list=(r.list||[]).filter(function(t){
+        if(lineKey&&t.line.replace(/\s/g,'').indexOf(lineKey.replace(/호선$/,''))<0)return false;
+        if(st.dir&&t.dir.indexOf(st.dir)<0&&t.dest.indexOf(st.dir)<0)return false;return true});
+      if(!list.length){h+='<div class="err">'+((r.list||[]).length?'조건에 맞는 열차가 없어요. 이 역 노선: '+esc(Array.from(new Set(r.list.map(function(t){return t.line+' '+t.dir}))).join(', ')):'도착 정보가 없어요 (운행 종료 또는 역 이름 확인)')+'</div></div>';return}
+      var groups={},order=[];list.forEach(function(t){var k=t.line+'|'+t.dir;if(!groups[k]){groups[k]=[];order.push(k)}groups[k].push(t)});
+      order.forEach(function(k){var g=groups[k].sort(function(a,b){return (a.n==null?99:a.n)-(b.n==null?99:b.n)||(a.sec-b.sec)}),t=g[0],col=LCOL[t.line]||'var(--ac)';
+        var dirTxt=(t.dest.split('-')[1]||t.dest).trim();
+        h+='<div class="sdir"><span class="sline" style="background:'+col+'">'+esc(t.line)+'</span>'+esc(t.dir)+(dirTxt?' · '+esc(dirTxt):'')+'</div>';
+        g.slice(0,2).forEach(function(x,i){var txt=x.n===0?(x.cd==='2'?'방금 출발':'도착·진입'):x.n!=null?x.n+'정거장 전':'';
+          var mn=x.sec?Math.max(1,Math.round(x.sec/60))+'분':'';
+          h+='<div class="br"'+(i?' style="opacity:.75"':'')+'><span class="a"><span class="'+(x.n!=null&&x.n<=1?'soon':'')+'">'+esc([txt,mn].filter(Boolean).join(' · ')||x.msg)+'</span><small>'+esc((x.dest.split('-')[0]||'').trim())+(x.exp?' 급행':'')+(x.last?' 막차':'')+'</small></span>'+track(x.n,'🚇',col)+'</div>'});
+      });
+      h+='</div>'});
+    el.innerHTML=h+'</div>';
+  }).catch(function(e){el.innerHTML='<div class="hd"><h2>🚇 지하철</h2></div><div class="err">'+esc(e.message)+'</div>'});
+}
+
+/* ───────── 칸 안의 주식 ───────── */
+function tStocks(){return lines(S.tileStocks).map(function(l){var i=l.indexOf('|');return i>0?{n:l.slice(0,i).trim(),s:l.slice(i+1).trim()}:{n:l,s:l}})}
+function loadTileStocks(){
+  if(!S.stkShow)return;var list=tStocks(),el=$('#stkBox');
+  if(!list.length){el.innerHTML='<div class="hd"><h2>'+ic('chart')+' 주식</h2></div><div class="err">설정 › 이 칸에 볼 주식을 넣어주세요</div>';return}
+  api('stock',{syms:list.map(function(x){return x.s}),range:'1d'}).then(function(res){
+    var h='<div class="hd"><h2>'+ic('chart')+' 주식</h2><span class="mu" style="font-size:.72rem">'+fmtT(Date.now())+'</span></div><div class="mstk">';
+    res.forEach(function(r,i){var n=list[i].n;
+      if(r.error){h+='<div class="ms"><span class="mn">'+esc(n)+'</span><span class="mp mu" style="font-size:.7rem">'+esc(r.error)+'</span></div>';return}
+      var ch=r.prev?r.price-r.prev:0,pc=r.prev?ch/r.prev*100:0,up=ch>=0;
+      h+='<div class="ms"><span class="mn">'+esc(n)+'</span><span class="mp">'+fmtNum(r.price)+'<small class="'+(up?'up':'dn')+'">'+(up?'▲':'▼')+Math.abs(pc).toFixed(2)+'%</small></span>'+spark(r.pts,r.prev,up)+'</div>'});
+    el.innerHTML=h+'</div>';
+  }).catch(function(e){el.innerHTML='<div class="hd"><h2>주식</h2></div><div class="err">'+esc(e.message)+'</div>'});
+}
+$('#stkBox').onclick=function(){openStock('1d')};
 
 /* ───────── 라디오 ───────── */
 var RAD={cur:null};
@@ -1305,6 +1394,12 @@ var FIELDS=[
   ['#','날씨 위치'],
   ['place','지역 이름 (검색 버튼으로 위도·경도 자동 입력)','text'],
   ['lat','위도','text'],['lon','경도','text'],
+  ['#','날씨'],
+  ['wxWeek','주간 날씨(7일) 보이기','check'],
+  ['#','교통·주식 칸'],
+  ['busShow','버스 보이기','check'],['subShow','지하철 보이기','check'],['stkShow','주식 보이기','check'],
+  ['subways','지하철역 — 한 줄에 하나:  역이름|호선|방향 (호선·방향은 비워도 돼요)\n방향은 상행/하행/내선/외선 또는 "신촌방면"처럼\n예) 홍대입구|2호선|내선','area'],
+  ['tileStocks','이 칸에 볼 주식 — 한 줄에 하나:  이름|야후 심볼\n국내 종목번호.KS (코스닥 .KQ), 미국은 AAPL·TSLA 처럼','area'],
   ['#','버스 정류장'],
   ['busTimes','자동 갱신 시간대 — 한 줄에 하나:  시작-끝|간격(초)\n이 시간 밖에서는 버스 칸을 누르면 5분간 보여줘요','area'],
   ['stops','한 줄에 하나:  지역|정류장번호|표시이름|노선(쉼표, 비우면 전체)\n서울(마을버스 포함): seoul|정류장 표지판 5자리 번호\n경기: gg|9자리 정류소ID\n예) seoul|14141|아파트 정문|마포09,7016','area'],
@@ -1421,6 +1516,8 @@ function refreshAll(force){
   if(due('ev',300,force))loadEvents();
   if(due('memo',30,force))loadMemos();
   if(S.bankShow&&due('bank',120,force))loadBank();
+  if(S.stkShow&&due('tstk',300,force))loadTileStocks();
+  if(force)showSecs();
   if(due('wx',1200,force))loadWeather();
   var h=new Date().getHours();
   var bw=busWin();
@@ -1485,7 +1582,7 @@ function applyColors(){
 }
 
 /* ───────── 화면 배치: 12칸 격자, 기기마다 따로 저장 ───────── */
-var WN={clock:'시계',weather:'날씨',bus:'버스',todo:'할 일',bank:'행복 통장',cal:'일정',photo:'사진',memo:'가족 톡'};
+var WN={clock:'시계',weather:'날씨',bus:'교통·주식',todo:'할 일',bank:'행복 통장',cal:'일정',photo:'사진',memo:'가족 톡'};
 var LAY_DEF={
   land:{clock:[0,0,4,3],weather:[0,3,4,5],bus:[0,8,4,4],todo:[4,0,4,5],bank:[4,5,4,2],cal:[4,7,4,5],photo:[8,0,4,5],memo:[8,5,4,7]},
   port:{clock:[0,0,12,3],todo:[0,3,12,5],bank:[0,8,12,2],cal:[0,10,12,7],weather:[0,17,12,5],memo:[0,22,12,7],photo:[0,29,12,5],bus:[0,34,12,4]}
@@ -1503,7 +1600,7 @@ function layApply(){
   var app=$('#app');app.classList.toggle('port',LAY.mode==='port');
   $$('#app .tile').forEach(function(t){var w=t.getAttribute('data-w'),p=LAY.pos[w]||[0,0,4,3],z=(LAY.fs[w]||100)/100;
     t.style.gridColumn=(p[0]+1)+' / span '+p[2];t.style.gridRow=(p[1]+1)+' / span '+p[3];
-    t.classList.toggle('hidden',(!!LAY.hide[w]&&!app.classList.contains('editing'))||(w==='bank'&&!S.bankShow));
+    t.classList.toggle('hidden',(!!LAY.hide[w]&&!app.classList.contains('editing'))||(w==='bank'&&!S.bankShow)||(w==='bus'&&!S.busShow&&!S.subShow&&!S.stkShow));
     t.style.opacity=LAY.hide[w]?'.35':'';
     t.style.zoom=z!==1?z:'';t.style.width=z!==1?(100/z)+'%':'';t.style.height=z!==1?(100/z)+'%':'';
     var nm=t.querySelector('.eh .nm');if(nm)nm.textContent=WN[w]+(z!==1?' · 글자 '+Math.round(z*100)+'%':'')+(LAY.hide[w]?' · 숨김':'');
