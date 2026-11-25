@@ -234,7 +234,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .st b{margin-right:.35rem;font-weight:600}
 .st small{color:var(--mu);margin-left:.35rem;font-size:.72rem}
 .status.fit{flex-wrap:nowrap}
-.status.fit .st{flex:1 1 0;min-width:0;justify-content:center;padding:.3rem .45rem;margin-right:.3rem}
+.status.fit .st{flex:1 1 0;width:0;max-width:none;min-width:0;justify-content:center;padding:.3rem .45rem;margin-right:.3rem}
 .status.fit .st:last-child{margin-right:0}
 .st .sx{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status.below .st{flex-direction:column;align-items:center;border-radius:14px;line-height:1.25}
@@ -422,7 +422,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 (function(){
 'use strict';
 /* ───────── 기본 ───────── */
-var VER='1.6.4', BLOG='https://blog.naver.com/iagapeu';
+var VER='1.6.5', BLOG='https://blog.naver.com/iagapeu';
 function $(s,el){return (el||document).querySelector(s)}
 function $$(s,el){return Array.prototype.slice.call((el||document).querySelectorAll(s))}
 function pad(n){return (n<10?'0':'')+n}
@@ -954,7 +954,7 @@ function fitStatus(){
 window.addEventListener('resize',function(){fitStatus()});
 function renderMemos(isNew){
   var ms=members(),sh='';
-  ms.forEach(function(w){if(w===S.me&&ms.indexOf(w)>1)return;var st=null;MEMO.status.forEach(function(x){if(x.who===w)st=x});
+  ms.forEach(function(w){var st=null;MEMO.status.forEach(function(x){if(x.who===w)st=x});
     sh+='<button class="st" data-w="'+esc(w)+'"><b>'+esc(w)+'</b>'+(st?'<span class="sx">'+esc(st.status)+'</span><small>'+ago(st.time)+'</small>':'<span class="sx mu">상태 남기기</span>')+'</button>'});
   $('#status').innerHTML=sh;fitStatus();
   var box=$('#msgs'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
