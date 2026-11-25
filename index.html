@@ -145,7 +145,15 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .wnow .big{width:4.2rem;height:4.2rem;color:var(--warn);margin-right:.9rem}
 .wnow .t{font-size:3rem;font-weight:300;letter-spacing:-.04em;line-height:1}
 .wnow .d{font-size:.95rem;margin-top:.25rem}
-.wnow .d span{color:var(--mu);font-size:.82rem;margin-left:.3rem}
+.wnow .d .wd2{color:var(--mu);font-size:.82rem;margin-left:.3rem}
+/* 날씨 스타일 1: 아이콘 | 온도 / 설명 / 체감 */
+.ws1 .wd1,.ws1 .wd2{display:block}.ws1 .d .wd2{margin:.1rem 0 0}
+/* 스타일 2: 아이콘 | 온도 | 설명 / 체감 (붙여서) */
+.ws2 .wtx,.ws3 .wtx{display:flex;align-items:center;flex:1}
+.ws2 .d,.ws3 .d{margin:0 0 0 .9rem;padding-left:.9rem;border-left:1px solid var(--line)}
+.ws2 .wd1,.ws2 .wd2,.ws3 .wd1,.ws3 .wd2{display:block}.ws2 .d .wd2,.ws3 .d .wd2{margin:.15rem 0 0}
+/* 스타일 3: 설명 / 체감을 오른쪽 끝으로 */
+.ws3 .d{margin-left:auto;border-left:0;padding-left:0;text-align:right}
 .wrow{display:flex;flex-wrap:wrap;margin-top:.8rem}
 .pill{font-size:.8rem;padding:.3rem .65rem;border-radius:999px;background:var(--card2);margin:0 .35rem .35rem 0;white-space:nowrap}
 .pill b{font-weight:600}
@@ -239,6 +247,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 .weather.ctr .wnow{justify-content:center;text-align:center;flex-direction:column}
 .weather.ctr .wnow .big{margin:0 0 .3rem}
 .weather.ctr .wnow .d span{display:block;margin:.15rem 0 0}
+.weather.ctr .ws2 .wtx,.weather.ctr .ws3 .wtx{flex-direction:column}.weather.ctr .ws2 .d,.weather.ctr .ws3 .d{margin:.2rem 0 0;padding:0;border:0;text-align:center}
 .weather.ctr .wrow{justify-content:center}
 .weather.ctr .wtm{justify-content:center}
 .msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:.2rem 0}
@@ -413,7 +422,7 @@ button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer
 (function(){
 'use strict';
 /* ───────── 기본 ───────── */
-var VER='1.6.3', BLOG='https://blog.naver.com/iagapeu';
+var VER='1.6.4', BLOG='https://blog.naver.com/iagapeu';
 function $(s,el){return (el||document).querySelector(s)}
 function $$(s,el){return Array.prototype.slice.call((el||document).querySelectorAll(s))}
 function pad(n){return (n<10?'0':'')+n}
@@ -428,7 +437,7 @@ var DEF={
   photoSec:'20', photoOrder:'random', idleFrame:'0', photoQ:'auto', photoNet:'always', photoCacheN:'200',
   todoPrefix:'할일', remind:true, uiScale:'100',
   busShow:true, subShow:false, stkShow:false, subways:'', tileStocks:'코스피|^KS11\n코스닥|^KQ11\n나스닥|^IXIC\n삼성전자|005930.KS\n애플|AAPL', wxWeek:true,
-  stTime:'auto', clockAlign:'left', wxAlign:'left',
+  wxStyle:'1', stTime:'auto', clockAlign:'left', wxAlign:'left',
   nightSize:'28', nightBright:'16', nightDate:true,
   bankShow:true, bankGive:false, timerSound:true, pin:'', font:'sys', clockFont:'', cTx:'',
   palette:'basic', cBg:'', cCard:'', cAc:'', cFam:'', cKid:'', cHol:'',
@@ -528,7 +537,7 @@ function renderWeather(){
   var p10=AIR&&AIR.current?Math.round(AIR.current.pm10):null,p25=AIR&&AIR.current?Math.round(AIR.current.pm2_5):null;
   var g10=pmG(p10),g25=pmG(p25,true);
   var h='<div class="hd"><h2>'+esc(S.place)+' 날씨</h2></div>';
-  h+='<div class="wnow">'+ic(w.k,'big')+'<div><div class="t">'+Math.round(c.temperature_2m)+'°</div><div class="d">'+w.t+'<span>체감 '+Math.round(c.apparent_temperature)+'°</span></div></div></div>';
+  h+='<div class="wnow ws'+(S.wxStyle||'1')+'">'+ic(w.k,'big')+'<div class="wtx"><div class="t">'+Math.round(c.temperature_2m)+'°</div><div class="d"><span class="wd1">'+w.t+'</span><span class="wd2">체감 '+Math.round(c.apparent_temperature)+'°</span></div></div></div>';
   h+='<div class="wrow"><span class="pill">최고 <b>'+Math.round(dd.temperature_2m_max[0])+'°</b> · 최저 <b>'+Math.round(dd.temperature_2m_min[0])+'°</b></span>';
   h+='<span class="pill">강수 <b>'+(dd.precipitation_probability_max[0]||0)+'%</b></span>';
   h+='<span class="pill">습도 '+c.relative_humidity_2m+'% · 바람 '+Math.round(c.wind_speed_10m)+'m/s</span>';
@@ -1453,7 +1462,8 @@ var FIELDS=[
   ['cFam','가족 일정 색','color'],['cKid','아이 일정·할 일 색','color'],['cHol','공휴일·일요일 색','color'],
   ['dims','밝기 시간표 — 한 줄에 하나:  시작-끝|밝기%  (0 = 화면 끄기)','area'],
   ['clockAlign','시계·날짜 정렬','select',[['left','왼쪽'],['center','가운데']]],
-  ['wxAlign','날씨 (아이콘·온도·설명) 정렬','select',[['left','왼쪽'],['center','가운데']]],
+  ['wxStyle','날씨 스타일','select',[['1','1 · 아이콘 | 온도 / 설명 / 체감 (세로)'],['2','2 · 아이콘 | 온도 | 설명 / 체감'],['3','3 · 아이콘 | 온도 ······ 설명 / 체감 (오른쪽 끝)']]],
+  ['wxAlign','날씨 정렬 (가운데를 고르면 스타일보다 먼저 적용)','select',[['left','왼쪽'],['center','가운데']]],
   ['stTime','가족 톡 상태칸의 시간 표시','select',[['auto','자동 (칸이 좁으면 아래로)'],['inline','옆에'],['below','항상 아래로'],['hide','감추기']]],
   ['nightSize','화면 끄기 때 시계 크기 (화면 너비의 %, 10~60)','number'],
   ['nightBright','화면 끄기 때 시계 밝기 (%, 0이면 시계 안 보임)','number'],
@@ -1505,7 +1515,7 @@ function openSettings(first){
     if(p.font){$('#s_font').value=p.font;$('#s_clockFont').value=p.clock||''}
     var of=S.font,oc=S.clockFont;S.font=$('#s_font').value;S.clockFont=$('#s_clockFont').value;tickClock();applyColors();applyFonts();S.palette=o;S.font=of;S.clockFont=oc};
   ['font','clockFont'].forEach(function(k){$('#s_'+k).onchange=function(){var o=S[k];S[k]=this.value;applyFonts();S[k]=o}});
-  $('#sSave').onclick=function(){collect();saveS();closeModal();toast('저장했어요');cWho=S.me;renderCompose();renderMemos();buildOrder();applyMenus();applyScale();tickClock();applyColors();applyFonts();layApply();renderBank();applyAlign();renderTodo();refreshAll(true)};
+  $('#sSave').onclick=function(){collect();saveS();closeModal();toast('저장했어요');cWho=S.me;renderCompose();renderMemos();buildOrder();applyMenus();applyScale();tickClock();applyColors();applyFonts();layApply();renderBank();applyAlign();renderWeather();renderTodo();refreshAll(true)};
   $('#sTest').onclick=function(){collect();api('ping').then(function(r){alert('✅ 연결 성공\n서버: '+(r.ver||'예전 버전 (새로 배포 필요)')+'\n\n'+r.cals.map(function(c){return (c.ok?'✅ ':'❌ ')+c.name}).join('\n'))}).catch(function(e){alert('❌ '+e.message)})};
   $('#sPC').onclick=function(){pcClear().then(function(){toast('저장된 사진을 비웠어요');closeModal()})};
   $('#sGeo').onclick=function(){var n=$('#s_place').value.trim();if(!n)return;
